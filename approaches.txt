@@ -1,0 +1,8 @@
+###
+word level approaches
+optimize_word
+    do a dfs over all possibilites for each word and find the best replacement for each word, use the entire string with replace word for comparison
+    accuracy => 75 %
+optimize_word_2
+    check over at max one character change per word 
+    accuracy => 94.02 %
