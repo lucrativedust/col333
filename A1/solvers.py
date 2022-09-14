@@ -1,4 +1,5 @@
 from pickletools import optimize
+from queue import PriorityQueue
 from tracemalloc import start
 
 
@@ -24,7 +25,7 @@ class SentenceCorrector(object):
             if( self.cost_fn(new_string) < self.best_word_cost ) :
                 self.best_word  = word
                 self.best_word_cost = self.cost_fn(new_string)
-                self.best_state = new_string
+                self.best_state = new_string ### since timer is likely to run out we keep storing the best answers
             return
         
         self.optimize_word_helper( word, idx+1, word_idx)
@@ -50,6 +51,48 @@ class SentenceCorrector(object):
                     self.best_word = new_word
                     self.best_word_cost = self.cost_fn(new_string)
 
+    def optimize_word_3( self, word, word_idx, beam_size = 25, beam_depth=5):
+        """
+            do a beam search on a word to explore all possibilities
+        """
+        self.best_word = word
+        self.best_word_cost = self.cost_fn(self.start_state)
+        words = self.start_state.split() ## holds all the words in the string
+        beam = [word]
+        for depth in range(beam_depth):
+            ## varialbles for next depth
+            queue = PriorityQueue()
+            new_beam = []
+            
+            ### process all solutions in the beam
+            for current_solution in beam :
+                
+                ### check if a solution gives a better answers 
+                # words[word_idx] = current_solution
+                # new_string = ' '.join(words)
+                # if( self.cost_fn(new_string) < self.best_word_cost) :
+                #     self.best_word_cost = self.cost_fn(new_string)
+                #     self.best_word = current_solution
+                
+                ## evaluate all neighbours
+                for char_idx in range(len(word)):
+                    for replace_current_char in self.conf_matrix[current_solution[char_idx]]:
+                        new_word = current_solution[:char_idx] + replace_current_char + current_solution[char_idx+1:]
+                        words[word_idx] = new_word
+                        new_string = ' '.join(words)
+                        queue.put((self.cost_fn(new_string), new_word))
+                
+            next_beam_size = 0 
+            while( next_beam_size < beam_size and ( not queue.empty())):
+                best_word_tuple = queue.get()
+                if(best_word_tuple[1] not in new_beam):
+                    next_beam_size += 1
+                    new_beam.append(best_word_tuple[1])
+                    if( best_word_tuple[0] < self.best_word_cost):
+                        self.best_word_cost = best_word_tuple[0]
+                        self.best_word = best_word_tuple[1]
+            beam = new_beam
+                
     def optimize_word( self, word, word_idx):
         self.best_word = word
         self.best_word_cost = self.cost_fn(self.start_state)
@@ -60,12 +103,13 @@ class SentenceCorrector(object):
         ans = ""
         for word_idx, word in enumerate(start_state.split()) :
             # self.optimize_word(word, word_idx)
-            self.optimize_word_2(word, word_idx)
+            # self.optimize_word_2(word, word_idx)
+            self.optimize_word_3( word, word_idx)
             optimized_word = self.best_word
             if( ans !=  "" ) : 
                 ans += " "
             ans += optimized_word
-            print(f"{word} => {optimized_word}")
+            # print(f"{word} => {optimized_word}")
         self.best_state = ans
         
     def search(self, start_state):

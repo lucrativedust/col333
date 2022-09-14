@@ -6,3 +6,6 @@ optimize_word
 optimize_word_2
     check over at max one character change per word 
     accuracy => 94.02 %
+optimize_word_3
+    beam search over the word possibilites beam_depth
+    accuracy => 95.14 %
