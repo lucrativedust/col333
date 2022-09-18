@@ -51,13 +51,14 @@ class SentenceCorrector(object):
                     self.best_word = new_word
                     self.best_word_cost = self.cost_fn(new_string)
 
-    def optimize_word_3( self, word, word_idx, beam_size = 25, beam_depth=5):
+    def optimize_word_3( self, word, word_idx, beam_size = 10, beam_depth=5):
         """
             do a beam search on a word to explore all possibilities
         """
         self.best_word = word
         self.best_word_cost = self.cost_fn(self.start_state)
-        words = self.start_state.split() ## holds all the words in the string
+        # words = self.start_state.split() ## holds all the words in the string
+        words = self.current_state.split() ### makes use of all words corrected till now
         beam = [word]
         for depth in range(beam_depth):
             ## varialbles for next depth
@@ -101,11 +102,16 @@ class SentenceCorrector(object):
     def per_word_optimization( self, start_state ) :
         self.best_state = start_state
         ans = ""
+        self.current_state = self.start_state
+        words = start_state.split()
         for word_idx, word in enumerate(start_state.split()) :
             # self.optimize_word(word, word_idx)
             # self.optimize_word_2(word, word_idx)
             self.optimize_word_3( word, word_idx)
             optimized_word = self.best_word
+            words[word_idx] = optimized_word ### update the optimized word for the future words
+            self.current_state = ' '.join(words)
+            self.best_state = self.current_state
             if( ans !=  "" ) : 
                 ans += " "
             ans += optimized_word
