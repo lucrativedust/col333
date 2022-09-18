@@ -68,13 +68,6 @@ class SentenceCorrector(object):
             ### process all solutions in the beam
             for current_solution in beam :
                 
-                ### check if a solution gives a better answers 
-                # words[word_idx] = current_solution
-                # new_string = ' '.join(words)
-                # if( self.cost_fn(new_string) < self.best_word_cost) :
-                #     self.best_word_cost = self.cost_fn(new_string)
-                #     self.best_word = current_solution
-                
                 ## evaluate all neighbours
                 for char_idx in range(len(word)):
                     for replace_current_char in self.conf_matrix[current_solution[char_idx]]:
@@ -117,12 +110,42 @@ class SentenceCorrector(object):
             ans += optimized_word
             # print(f"{word} => {optimized_word}")
         self.best_state = ans
+    
+    def beam_search_on_sentence(self, start_state, beam_size = 10, beam_depth = 30 ):
+        
+        self.best_state = start_state
+        self.best_cost = self.cost_fn(start_state)
+        
+        beam = [start_state]
+        
+        for depth in range(beam_depth):
+            
+            queue = PriorityQueue()
+            for current_solution in beam : 
+                for char_idx in range(len(current_solution)):
+                    if( current_solution[char_idx] != ' '):
+                        for replacement_char in self.conf_matrix[current_solution[char_idx]]:
+                            new_solution = current_solution[:char_idx] + replacement_char + current_solution[char_idx+1:]
+                            queue.put((self.cost_fn(new_solution), new_solution))
+
+            next_beam = []
+
+            for i in range(beam_size):
+                best_solution_tuple  = queue.get()
+                next_beam.append(best_solution_tuple[1])
+                if( best_solution_tuple[0] < self.best_cost ) :
+                    self.best_cost = best_solution_tuple[0]
+                    self.best_state = best_solution_tuple[1]
+            beam = next_beam
+        
         
     def search(self, start_state):
         """
         :param start_state: str Input string with spelling errors
         """
         self.start_state = start_state
+        
         # You should keep updating self.best_state with best string so far.
-        self.per_word_optimization(start_state)
+        # self.per_word_optimization(start_state)
+        self.beam_search_on_sentence(start_state)
         return 

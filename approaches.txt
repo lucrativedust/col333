@@ -8,4 +8,7 @@ optimize_word_2
     accuracy => 94.02 %
 optimize_word_3
     beam search over the word possibilites beam_depth
-    accuracy => 95.14 %
+    accuracy => 95.14 % 
+
+    if we keep updating the sentence with the new words found, beam_depth = 5, beam_size = 10
+    accuracy => 95.89 %
