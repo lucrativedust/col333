@@ -50,3 +50,4 @@ print(f"Final Character Accuracy {characters_finally_correct/character_total*100
 input.close()
 prediction.close()
 target.close()
+print(f" {characters_finally_correct}/{(character_total-characters_finally_correct)}")
