@@ -23,7 +23,9 @@ print(f"Number Of Sentences: {num_of_sentences}")
 total_words = 0 
 total_correct = 0
 total_correct_initially = 0
-
+character_total = 0
+characters_initially_correct = 0
+characters_finally_correct = 0
 for sentence in range(1, num_of_sentences+1):
     input_sentence = input_sentences[sentence-1]
     prediction_sentence = prediction_sentences[sentence-1]
@@ -34,12 +36,17 @@ for sentence in range(1, num_of_sentences+1):
     target_words = target_sentence.split()
     total_words += len(input_words)
     for i in range(len(input_words)):
+        character_total += len(input_words[i])
+        for j in range(len(input_words[i])):
+            characters_initially_correct += ( 1 if target_words[i][j] == input_words[i][j] else 0 )
+            characters_finally_correct +=  ( 1 if target_words[i][j] == pred_words[i][j] else 0 )
         total_correct += (1 if pred_words[i] == target_words[i] else 0  )
         total_correct_initially += ( 1 if target_words[i] == input_words[i] else 0)
         
-print(f"Initial Accuracy {total_correct_initially/total_words*100} %")
-print(f"Algorithm Accuracy {total_correct/total_words*100} %")
- 
+print(f"Initial WORD Accuracy {total_correct_initially/total_words*100} %")
+print(f"Algorithm FINAL WORD Accuracy {total_correct/total_words*100} %")
+print(f"Initial Character Accuracy {characters_initially_correct/character_total*100} %")
+print(f"Final Character Accuracy {characters_finally_correct/character_total*100} %")
 input.close()
 prediction.close()
 target.close()

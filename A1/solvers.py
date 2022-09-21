@@ -8,7 +8,13 @@ class SentenceCorrector(object):
     def __init__(self, cost_fn, conf_matrix):
         self.conf_matrix = conf_matrix
         self.cost_fn = cost_fn
-
+        self.inverse_conf_matrix = {}
+        for char in self.conf_matrix:
+            for replacement_char in self.conf_matrix[char]:
+                if( replacement_char not in self.inverse_conf_matrix):
+                    self.inverse_conf_matrix[replacement_char] = []
+                self.inverse_conf_matrix[replacement_char].append(char)
+        # print(self.inverse_conf_matrix)
         # You should keep updating following variable with best string so far.
         self.best_state = None  
         
@@ -51,12 +57,13 @@ class SentenceCorrector(object):
                     self.best_word = new_word
                     self.best_word_cost = self.cost_fn(new_string)
 
-    def optimize_word_3( self, word, word_idx, beam_size = 10, beam_depth=5):
+    def optimize_word_3( self, word, word_idx, beam_size = 5, beam_depth=5):
         """
             do a beam search on a word to explore all possibilities
         """
         self.best_word = word
         self.best_word_cost = self.cost_fn(self.start_state)
+        # self.best_word_cost = self.cost_fn(self.current_state)
         # words = self.start_state.split() ## holds all the words in the string
         words = self.current_state.split() ### makes use of all words corrected till now
         beam = [word]
@@ -121,12 +128,14 @@ class SentenceCorrector(object):
         for depth in range(beam_depth):
             
             queue = PriorityQueue()
+            self.conf_matrix = self.inverse_conf_matrix
             for current_solution in beam : 
                 for char_idx in range(len(current_solution)):
                     if( current_solution[char_idx] != ' '):
-                        for replacement_char in self.conf_matrix[current_solution[char_idx]]:
-                            new_solution = current_solution[:char_idx] + replacement_char + current_solution[char_idx+1:]
-                            queue.put((self.cost_fn(new_solution), new_solution))
+                        if( current_solution[char_idx] in self.conf_matrix):
+                            for replacement_char in self.conf_matrix[current_solution[char_idx]]:
+                                new_solution = current_solution[:char_idx] + replacement_char + current_solution[char_idx+1:]
+                                queue.put((self.cost_fn(new_solution), new_solution))
 
             next_beam = []
 
