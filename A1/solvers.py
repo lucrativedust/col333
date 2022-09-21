@@ -77,11 +77,12 @@ class SentenceCorrector(object):
                 
                 ## evaluate all neighbours
                 for char_idx in range(len(word)):
-                    for replace_current_char in self.conf_matrix[current_solution[char_idx]]:
-                        new_word = current_solution[:char_idx] + replace_current_char + current_solution[char_idx+1:]
-                        words[word_idx] = new_word
-                        new_string = ' '.join(words)
-                        queue.put((self.cost_fn(new_string), new_word))
+                    if( current_solution[char_idx] in self.conf_matrix):
+                        for replace_current_char in self.conf_matrix[current_solution[char_idx]]:
+                            new_word = current_solution[:char_idx] + replace_current_char + current_solution[char_idx+1:]
+                            words[word_idx] = new_word
+                            new_string = ' '.join(words)
+                            queue.put((self.cost_fn(new_string), new_word))
                 
             next_beam_size = 0 
             while( next_beam_size < beam_size and ( not queue.empty())):
@@ -111,6 +112,7 @@ class SentenceCorrector(object):
             optimized_word = self.best_word
             words[word_idx] = optimized_word ### update the optimized word for the future words
             self.current_state = ' '.join(words)
+            print(self.current_state)
             self.best_state = self.current_state
             if( ans !=  "" ) : 
                 ans += " "
@@ -153,8 +155,9 @@ class SentenceCorrector(object):
         :param start_state: str Input string with spelling errors
         """
         self.start_state = start_state
-        
+        self.conf_matrix = self.inverse_conf_matrix
         # You should keep updating self.best_state with best string so far.
-        # self.per_word_optimization(start_state)
-        self.beam_search_on_sentence(start_state)
+        self.per_word_optimization(start_state)
+        # self.per_word_optimization()
+        # self.beam_search_on_sentence(start_state)
         return 
