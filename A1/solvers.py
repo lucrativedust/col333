@@ -57,7 +57,7 @@ class SentenceCorrector(object):
                     self.best_word = new_word
                     self.best_word_cost = self.cost_fn(new_string)
 
-    def optimize_word_3( self, word, word_idx, beam_size=500, beam_depth=3, best_n = 50):
+    def optimize_word_3( self, word, word_idx, beam_size=1500, beam_depth=3, best_n = 50):
         """
             do a beam search on a word to explore all possibilities
         """
