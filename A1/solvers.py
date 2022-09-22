@@ -57,7 +57,7 @@ class SentenceCorrector(object):
                     self.best_word = new_word
                     self.best_word_cost = self.cost_fn(new_string)
 
-    def optimize_word_3( self, word, word_idx, beam_size=40, beam_depth=4, best_n = 5):
+    def optimize_word_3( self, word, word_idx, beam_size=425, beam_depth=4, best_n = 5):
         """
             do a beam search on a word to explore all possibilities
         """
@@ -89,27 +89,41 @@ class SentenceCorrector(object):
                             new_string = ' '.join(words)
 
                             if new_word not in d:
-                                queue.put((self.cost_fn(new_string), new_word))
-                                bwq.put((self.cost_fn(new_string), new_word))
                                 d.add(new_word)
+                                ft = self.cost_fn(new_string)
+                                # if ft < 1.05*self.best_word_cost:
+                                queue.put((ft, new_word))
+                                bwq.put((ft, new_word))
                             #optimize here
                 
-            next_beam_size = 0 
-            while( next_beam_size < beam_size and ( not queue.empty())):
+            next_beam_size = 0
+            # print(queue.qsize())   
+            while ( next_beam_size < beam_size and ( not queue.empty())):
                 best_word_tuple = queue.get()
-                if(best_word_tuple[1] not in new_beam):
-                    next_beam_size += 1
+                if best_word_tuple[0] < 1.05*self.best_word_cost:
                     new_beam.append(best_word_tuple[1])
+                    next_beam_size += 1
                     if( best_word_tuple[0] < self.best_word_cost):
                         self.best_word_cost = best_word_tuple[0]
                         self.best_word = best_word_tuple[1]
+                else:
+                    break
             beam = new_beam
         ans = []
-        for _ in range(best_n):
+        a = bwq.get()
+        ans.append(a[1])
+        for _ in range(best_n-1):
             if not bwq.empty():
                 t = bwq.get()
-                ans.append(t[1])
+                if a[0]*1.2 > t[0]:
+                    ans.append(t[1])
+                else:
+                    break
+            else:
+                break
+                # print(t,end=" ")
         self.best_words.append(ans)
+        # print()
 
         # return list of best words
                 
@@ -118,7 +132,7 @@ class SentenceCorrector(object):
         self.best_word_cost = self.cost_fn(self.start_state)
         self.optimize_word_helper( word, 0, word_idx)
     
-    def per_word_optimization( self, start_state ,beam_size = 50, beam_depth = 100) :
+    def per_word_optimization( self, start_state ,beam_size = 10, beam_depth = 10) :
         self.best_state = start_state
         # ans = ""
         self.current_state = self.start_state
@@ -139,7 +153,10 @@ class SentenceCorrector(object):
             # ans += optimized_word
             # print(f"{word} => {optimized_word}")
         print("Starting the main search")
-        print(self.best_words[8])
+        # for elem in self.best_words:
+        #     if len(elem) > 3:
+        #         print(elem,end=" ")
+        # print(self.best_words[8])
         # self.best_state = ans
         beam = [self.best_state]
         for _ in range(beam_depth):
@@ -147,7 +164,7 @@ class SentenceCorrector(object):
             for cs in beam:
                 cs_words = cs.split(' ')
                 for i,word in enumerate(cs_words):
-                    for pos_rep in self.best_words[i]:
+                    for pos_rep in self.best_words[i][1:]:
                         new_sol = ' '.join(cs_words[:i]+[pos_rep]+cs_words[i+1:])
                         cost = self.cost_fn(new_sol)
                         prq.put((cost, new_sol))
