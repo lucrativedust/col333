@@ -1,7 +1,7 @@
 from pickletools import optimize
 from queue import PriorityQueue
 from tracemalloc import start
-
+import random
 
 class SentenceCorrector(object):
     
@@ -57,7 +57,7 @@ class SentenceCorrector(object):
                     self.best_word = new_word
                     self.best_word_cost = self.cost_fn(new_string)
 
-    def optimize_word_3( self, word, word_idx, beam_size=425, beam_depth=4, best_n = 5):
+    def optimize_word_3( self, word, word_idx, beam_size=500, beam_depth=3, best_n = 50):
         """
             do a beam search on a word to explore all possibilities
         """
@@ -115,14 +115,14 @@ class SentenceCorrector(object):
         for _ in range(best_n-1):
             if not bwq.empty():
                 t = bwq.get()
-                if a[0]*1.2 > t[0]:
+                if a[0]*1.15 > t[0]:
                     ans.append(t[1])
                 else:
                     break
             else:
                 break
                 # print(t,end=" ")
-        self.best_words.append(ans)
+        self.best_words[word_idx] = ans
         # print()
 
         # return list of best words
@@ -132,13 +132,13 @@ class SentenceCorrector(object):
         self.best_word_cost = self.cost_fn(self.start_state)
         self.optimize_word_helper( word, 0, word_idx)
     
-    def per_word_optimization( self, start_state ,beam_size = 10, beam_depth = 10) :
+    def per_word_optimization( self, start_state ,beam_size = 40, beam_depth = 10) :
         self.best_state = start_state
         # ans = ""
         self.current_state = self.start_state
-        self.best_words = []
         words = start_state.split()
-        for word_idx, word in enumerate(start_state.split()) :
+        self.best_words = [[] for _ in words]
+        for word_idx, word in enumerate(words) :
             # self.optimize_word(word, word_idx)
             # self.optimize_word_2(word, word_idx)
             self.optimize_word_3( word, word_idx)
@@ -152,7 +152,7 @@ class SentenceCorrector(object):
             #     ans += " "
             # ans += optimized_word
             # print(f"{word} => {optimized_word}")
-        print("Starting the main search")
+        # print("Starting the main search")
         # for elem in self.best_words:
         #     if len(elem) > 3:
         #         print(elem,end=" ")
@@ -164,7 +164,7 @@ class SentenceCorrector(object):
             for cs in beam:
                 cs_words = cs.split(' ')
                 for i,word in enumerate(cs_words):
-                    for pos_rep in self.best_words[i][1:]:
+                    for pos_rep in self.best_words[i]:
                         new_sol = ' '.join(cs_words[:i]+[pos_rep]+cs_words[i+1:])
                         cost = self.cost_fn(new_sol)
                         prq.put((cost, new_sol))
@@ -204,18 +204,36 @@ class SentenceCorrector(object):
 
             for i in range(beam_size):
                 best_solution_tuple  = queue.get()
-                next_beam.append(best_solution_tuple[1])
+                if best_solution_tuple[0] < 1.2*self.best_cost:
+                    next_beam.append(best_solution_tuple[1])
                 if( best_solution_tuple[0] < self.best_cost ) :
                     self.best_cost = best_solution_tuple[0]
                     self.best_state = best_solution_tuple[1]
             beam = next_beam
         
-        
+    def input_generator(self):
+        oldwords = self.start_state.split(' ')
+        newwords = []
+        for word in oldwords:
+            w = ""
+            for char in word:
+                z = random.randint(1,100)
+                if z < 6:
+                    w += random.choice(self.conf_matrix[char])
+                else:
+                    w += char
+            newwords.append(w)
+        self.best_state = ' '.join(newwords)
+
     def search(self, start_state):
         """
         :param start_state: str Input string with spelling errors
         """
         self.start_state = start_state
+        
+
+
+
         self.conf_matrix = self.inverse_conf_matrix
         # You should keep updating self.best_state with best string so far.
         self.per_word_optimization(start_state)
