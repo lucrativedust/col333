@@ -48,7 +48,7 @@ class AIPlayer:
         # filled_cells = get_number_of_filled_cells(board)
         # return 1 when (filled_cells % 2 == 0) else 2
 
-    def apply_action( self, action : Tuple[int, bool],  state : Tuple[np.array, Dict[int, Integer]], player : Integer ) -> Tuple[np.array, Dict[int, Integer]] :
+    def apply_action( self, action : Tuple[int, bool],  state : Tuple[np.array, Dict[int, Integer]], player : int ) -> Tuple[np.array, Dict[int, Integer]] :
         """
             returns the new state after applying the action on the given state
             player: player number playing the action
@@ -59,7 +59,7 @@ class AIPlayer:
         column = action[0]
         next_state = state # to be returned by this function
         if is_popout:
-            next_state[1][player] -= 1 # players pop out moves decreases
+            next_state[1][player].decrement() # players pop out moves decreases
             next_state[0][0][column] = 0  # first value in column will become zero
             # shift values in the columns
             for row in range(m-1,0,-1):
@@ -105,7 +105,6 @@ class AIPlayer:
         my_player_number = self.player_number
         valid_actions  = get_valid_actions(my_player_number, state)
         total_number_of_valid_actions = len(valid_actions)
-        print("AI: ", total_number_of_valid_actions)
         if( total_number_of_valid_actions == 0 ):
             return (get_pts(my_player_number, state[0]), None)
         best_value, best_action = None, None       
