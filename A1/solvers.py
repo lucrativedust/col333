@@ -1,6 +1,5 @@
-from pickletools import optimize
+from cgitb import small
 from queue import PriorityQueue
-from tracemalloc import start
 import random
 
 class SentenceCorrector(object):
@@ -9,76 +8,36 @@ class SentenceCorrector(object):
         self.conf_matrix = conf_matrix
         self.cost_fn = cost_fn
         self.inverse_conf_matrix = {}
+        #### invert the confusion matrix according to problem specification
         for char in self.conf_matrix:
             for replacement_char in self.conf_matrix[char]:
                 if( replacement_char not in self.inverse_conf_matrix):
                     self.inverse_conf_matrix[replacement_char] = []
                 self.inverse_conf_matrix[replacement_char].append(char)
-        # print(self.inverse_conf_matrix)
         # You should keep updating following variable with best string so far.
         self.best_state = None  
-        
-    def optimize_word_helper( self, word, idx, word_idx):
-        """
-            iterates over all letters and checks all possible replacements by DFS
-        """
-        if( idx == len(word) ) :
-            words = self.start_state.split()
-            ### update string with new word
-            words[word_idx] = word
-            new_string = ' '.join(words)
-            ### check if this improves cost
-            if( self.cost_fn(new_string) < self.best_word_cost ) :
-                self.best_word  = word
-                self.best_word_cost = self.cost_fn(new_string)
-                self.best_state = new_string ### since timer is likely to run out we keep storing the best answers
-            return
-        
-        self.optimize_word_helper( word, idx+1, word_idx)
-        
-        for replace_current_char in self.conf_matrix[word[idx]]:
-            self.optimize_word_helper(word[:idx] + replace_current_char + word[idx+1:], idx+1, word_idx)
-            
-        return
-    
-    def optimize_word_2( self, word, word_idx):
-        """
-            replaces only character and finds best possibility
-        """
-        self.best_word = word 
-        self.best_word_cost = self.cost_fn(self.start_state)
-        words = self.start_state.split()
-        for i in range(len(word)):
-            for replace_current_char in self.conf_matrix[word[i]]:
-                new_word = word[:i] + replace_current_char + word[i+1:]
-                words[word_idx] = new_word
-                new_string = ' '.join(words)
-                if( self.cost_fn(new_string) < self.best_word_cost  ) : 
-                    self.best_word = new_word
-                    self.best_word_cost = self.cost_fn(new_string)
 
-    def optimize_word_3( self, word, word_idx, beam_size=1500, beam_depth=3, best_n = 50):
+    def optimize_word_3( self, word, word_idx, beam_size=30000, beam_depth=1, best_n = 20,epsilon=1.05):
         """
             do a beam search on a word to explore all possibilities
         """
-        bwq = PriorityQueue()
+         ### we maintain a priority queue to store the best possible replacements of each word
         self.best_word = word
         self.best_word_cost = self.cost_fn(self.current_state)
-        bwq.put((self.best_word_cost,self.best_word))
-        # print(f"\nbest word is {word}, {self.best_word_cost}")
-        d = {self.best_word}
-        # d.add(self.best_word)
-        # self.best_word_cost = self.cost_fn(self.current_state)
-        # words = self.start_state.split() ## holds all the words in the string
+
+        self.bwq[word_idx].put((self.best_word_cost,self.best_word))
+        self.d[word_idx][self.best_word] = self.best_word_cost
         words = self.current_state.split() ### makes use of all words corrected till now
-        beam = [word]
+        # self.wbeams[word_idx] = [word] ## gets updated after every iteration of the beam
+        lw = len(word)
+        f = 1+(epsilon*lw)
         for depth in range(beam_depth):
             ## varialbles for next depth
             queue = PriorityQueue()
             new_beam = []
             
             ### process all solutions in the beam
-            for current_solution in beam :
+            for current_solution in self.wbeams[word_idx] :
                 
                 ## evaluate all neighbours
                 for char_idx in range(len(word)):
@@ -87,81 +46,74 @@ class SentenceCorrector(object):
                             new_word = current_solution[:char_idx] + replace_current_char + current_solution[char_idx+1:]
                             words[word_idx] = new_word
                             new_string = ' '.join(words)
-
-                            if new_word not in d:
-                                d.add(new_word)
+                            if new_word not in self.d[word_idx]:
                                 ft = self.cost_fn(new_string)
-                                # if ft < 1.05*self.best_word_cost:
+                                self.d[word_idx][new_word] = ft
                                 queue.put((ft, new_word))
-                                bwq.put((ft, new_word))
-                            #optimize here
+                                self.bwq[word_idx].put((ft, new_word))
+                            # else:
+                            #     t = self.d[word_idx][new_word]
+                            #     if t > ft:
+                            #         self.d[word_idx][new_word] = ft
+                            #         queue.put((ft, new_word))
+                            #         self.bwq[word_idx].put((ft, new_word))
+
+
                 
             next_beam_size = 0
-            # print(queue.qsize())   
+            ### choose the best neighbours for the next iteration of the beam search
             while ( next_beam_size < beam_size and ( not queue.empty())):
                 best_word_tuple = queue.get()
-                if best_word_tuple[0] < 1.05*self.best_word_cost:
+                if best_word_tuple[0] < f*self.best_cost: ### only consider those neighbours which are within some bound
                     new_beam.append(best_word_tuple[1])
                     next_beam_size += 1
-                    if( best_word_tuple[0] < self.best_word_cost):
-                        self.best_word_cost = best_word_tuple[0]
+                    if( best_word_tuple[0] < self.best_cost):
+                        self.best_cost = best_word_tuple[0]
                         self.best_word = best_word_tuple[1]
                 else:
                     break
-            beam = new_beam
-        ans = []
-        a = bwq.get()
+            self.wbeams[word_idx] = new_beam
+        ans = [] ### returns the list of best possible possibilities of each word
+        a = self.bwq[word_idx].get()
         ans.append(a[1])
+        u = []
+        u.append(a)
         for _ in range(best_n-1):
-            if not bwq.empty():
-                t = bwq.get()
-                if a[0]*1.15 > t[0]:
+            if not self.bwq[word_idx].empty():
+                t = self.bwq[word_idx].get()
+                if a[0]*1.15 > t[0]: ### consider only those answers which are within some bounds dependent on the best state
                     ans.append(t[1])
+                    u.append(t)
                 else:
                     break
             else:
                 break
-                # print(t,end=" ")
-        self.best_words[word_idx] = ans
-        # print()
-
-        # return list of best words
+        # for elem in u:
+        #     self.bwq[word_idx].put(elem)
+        self.best_words[word_idx] = ans ### stores the best possible replacement for each word
                 
-    def optimize_word( self, word, word_idx):
-        self.best_word = word
-        self.best_word_cost = self.cost_fn(self.start_state)
-        self.optimize_word_helper( word, 0, word_idx)
     
-    def per_word_optimization( self, start_state ,beam_size = 40, beam_depth = 10) :
+    def per_word_optimization( self, start_state ,beam_size = 40, beam_depth = 5,small_beam_depth = 3,epsilon=1.05) :
         self.best_state = start_state
+        self.best_cost = self.cost_fn(self.best_state)
         # ans = ""
         self.current_state = self.start_state
         words = start_state.split()
         self.best_words = [[] for _ in words]
+        
         for word_idx, word in enumerate(words) :
-            # self.optimize_word(word, word_idx)
-            # self.optimize_word_2(word, word_idx)
-            self.optimize_word_3( word, word_idx)
-            # print(lr,end=" ")
+            self.optimize_word_3( word, word_idx,beam_depth=small_beam_depth,epsilon=epsilon) ### call beam search on each word
             optimized_word = self.best_word
             words[word_idx] = optimized_word ### update the optimized word for the future words
             self.current_state = ' '.join(words)
-            # # print(self.current_state)
-            self.best_state = self.current_state
-            # if( ans !=  "" ) : 
-            #     ans += " "
-            # ans += optimized_word
-            # print(f"{word} => {optimized_word}")
-        # print("Starting the main search")
-        # for elem in self.best_words:
-        #     if len(elem) > 3:
-        #         print(elem,end=" ")
-        # print(self.best_words[8])
-        # self.best_state = ans
-        beam = [self.best_state]
+            self.best_state = self.current_state #### we keep updating the sentence with the best replacement of each word
+        ### beam search on the word space where we know the best replacement for each word
+        if len(self.beam) == 0:
+            self.beam = [self.best_state]
+        print("Beam search",small_beam_depth,end=" ")
         for _ in range(beam_depth):
             prq = PriorityQueue()
-            for cs in beam:
+            for cs in self.beam:
                 cs_words = cs.split(' ')
                 for i,word in enumerate(cs_words):
                     for pos_rep in self.best_words[i]:
@@ -175,68 +127,43 @@ class SentenceCorrector(object):
                 if (possol[0] < self.cost_fn(self.best_state)):
                     self.best_cost = possol[0]
                     self.best_state = possol[1]
-            beam = next_beam
+            self.beam = next_beam
 
 
 
 
     
-    def beam_search_on_sentence(self, start_state, beam_size = 10, beam_depth = 30 ):
         
-        self.best_state = start_state
-        self.best_cost = self.cost_fn(start_state)
-        
-        beam = [start_state]
-        
-        for depth in range(beam_depth):
-            
-            queue = PriorityQueue()
-            # self.conf_matrix = self.inverse_conf_matrix
-            for current_solution in beam : 
-                for char_idx in range(len(current_solution)):
-                    if( current_solution[char_idx] != ' '):
-                        if( current_solution[char_idx] in self.conf_matrix):
-                            for replacement_char in self.conf_matrix[current_solution[char_idx]]:
-                                new_solution = current_solution[:char_idx] + replacement_char + current_solution[char_idx+1:]
-                                queue.put((self.cost_fn(new_solution), new_solution))
-
-            next_beam = []
-
-            for i in range(beam_size):
-                best_solution_tuple  = queue.get()
-                if best_solution_tuple[0] < 1.2*self.best_cost:
-                    next_beam.append(best_solution_tuple[1])
-                if( best_solution_tuple[0] < self.best_cost ) :
-                    self.best_cost = best_solution_tuple[0]
-                    self.best_state = best_solution_tuple[1]
-            beam = next_beam
-        
-    def input_generator(self):
-        oldwords = self.start_state.split(' ')
-        newwords = []
-        for word in oldwords:
-            w = ""
-            for char in word:
-                z = random.randint(1,100)
-                if z < 6:
-                    w += random.choice(self.conf_matrix[char])
-                else:
-                    w += char
-            newwords.append(w)
-        self.best_state = ' '.join(newwords)
-
     def search(self, start_state):
         """
         :param start_state: str Input string with spelling errors
         """
         self.start_state = start_state
-        
-
-
-
+        self.best_state = start_state
         self.conf_matrix = self.inverse_conf_matrix
+        self.best_cost = self.cost_fn(self.best_state)
+        words = start_state.split()
+        self.beam = []
+        self.wbeams = [[word] for word in words]
+        self.d = [{} for _ in words]
+        self.bwq = [PriorityQueue() for _ in words]
+
+        # print(self.start_state)
         # You should keep updating self.best_state with best string so far.
-        self.per_word_optimization(start_state)
-        # self.per_word_optimization()
-        # self.beam_search_on_sentence(start_state)
+        # self.per_word_optimization(start_state) #### main routine of our algorithm
+        self.per_word_optimization(start_state=start_state,beam_depth=4,small_beam_depth=1,epsilon=0.035)
+        print(self.wbeams[13])
+        print("Hola 1",end=" ")
+        self.per_word_optimization(start_state=start_state,beam_depth=1,small_beam_depth=1,epsilon=0.035)
+        print(self.wbeams[13])
+        print("Hola 2",end=" ")
+        self.per_word_optimization(start_state=self.best_state,small_beam_depth=1,epsilon=0.005)
+        print(self.wbeams[13])
+        for i,x in enumerate(words):
+            if len(self.wbeams[i]) > 0:
+                print(i,len(self.wbeams[i]),end=" ")
+        print("Done")
+
+
+
         return 

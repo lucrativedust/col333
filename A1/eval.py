@@ -1,8 +1,8 @@
 import pickle
 lm_file = "./data/lm_model.pkl"
-input_file = "./data/input.txt"
-pred_file = "./data/pred.txt"
-target_file = "./data/output.txt"
+input_file = "./data/diff-inp.txt"
+pred_file = "./data/diff-pred.txt"
+target_file = "./data/diff-out.txt"
 input = open( input_file, 'r')
 prediction = open( pred_file, 'r')
 target = open( target_file, 'r')
@@ -41,6 +41,9 @@ for sentence in range(1, num_of_sentences+1):
             characters_initially_correct += ( 1 if target_words[i][j] == input_words[i][j] else 0 )
             characters_finally_correct +=  ( 1 if target_words[i][j] == pred_words[i][j] else 0 )
         total_correct += (1 if pred_words[i] == target_words[i] else 0  )
+        if (pred_words[i] != target_words[i]):
+            print(i,pred_words[i],target_words[i])
+
         total_correct_initially += ( 1 if target_words[i] == input_words[i] else 0)
         
 print(f"Initial WORD Accuracy {total_correct_initially/total_words*100} %")
