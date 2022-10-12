@@ -59,7 +59,8 @@ class AIPlayer:
         column = action[0]
         next_state = state # to be returned by this function
         if is_popout:
-            next_state[1][player].decrement() # players pop out moves decreases
+            next_state[1][player] = Integer(next_state[1][player].get_int()-1)
+            # next_state[1][player].decrement() # players pop out moves decreases
             next_state[0][0][column] = 0  # first value in column will become zero
             # shift values in the columns
             for row in range(m-1,0,-1):
@@ -87,7 +88,7 @@ class AIPlayer:
         valid_actions  = get_valid_actions(adversary_number, state)
         total_number_of_valid_actions = len(valid_actions)
         if( total_number_of_valid_actions == 0 ):
-            return get_pts(adversary_number, state[0])
+            return get_pts(self.player_number, state[0])
         sum_of_children = 0
         for action in valid_actions:
             next_state = self.apply_action(action, state, adversary_number)
