@@ -18,7 +18,7 @@ from connect4.utils import get_pts, get_valid_actions, Integer
 
 # Local libs
 from connect4.players.ai import AIPlayer
-# from connect4.players.ai2 import AIPlayer as AIPlayer2
+from connect4.players.ai2 import AIPlayer as AIPlayer2
 from connect4.players.random import RandomPlayer
 from connect4.players.human import HumanPlayer
 
@@ -129,7 +129,7 @@ class Game:
             self.game_over = True
 
         if not self.game_over:
-            if current_player.type == 'ai':
+            if current_player.type[:2] == 'ai':
                 if self.players[int(not self.current_turn)].type == 'random':
                     p_func = current_player.get_expectimax_move
                 else:
@@ -222,6 +222,8 @@ def main(player1: str, player2: str, init_fine_name: str, time: int):
     def make_player(name, num):
         if name == 'ai':
             return AIPlayer(num, time)
+        elif name == "ai2":
+            return AIPlayer2(num, time)
         elif name == 'random':
             return RandomPlayer(num)
         elif name == 'human':
@@ -236,6 +238,7 @@ def main(player1: str, player2: str, init_fine_name: str, time: int):
 
 if __name__ == '__main__':
     player_types = ['ai', 'random', 'human']
+    player_types.append('ai2')
     parser = argparse.ArgumentParser()
     parser.add_argument('player1', choices=player_types)
     parser.add_argument('player2', choices=player_types)

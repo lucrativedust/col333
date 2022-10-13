@@ -14,25 +14,15 @@ class AIPlayer:
         self.type = 'ai'
         self.player_string = 'Player {}:ai'.format(player_number)
         self.time = time
+        self.depth = 2
+        self.counter = 0
         # Do the rest of your implementation here
 
-    def get_intelligent_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
-        """
-        Given the current state of the board, return the next move
-        This will play against either itself or a human player
-        :param state: Contains:
-                        1. board
-                            - a numpy array containing the state of the board using the following encoding:
-                            - the board maintains its same two dimensions
-                                - row 0 is the top of the board and so is the last row filled
-                            - spaces that are unoccupied are marked as 0
-                            - spaces that are occupied by player 1 have a 1 in them
-                            - spaces that are occupied by player 2 have a 2 in them
-                        2. Dictionary of int to Integer. It will tell the remaining popout moves given a player
-        :return: action (0 based index of the column and if it is a popout move)
-        """
+    
+
+
         # Do the rest of your implementation here
-        raise NotImplementedError('Whoops I don\'t know what to do')
+        # raise NotImplementedError('Whoops I don\'t know what to do')
     
     def get_number_of_filled_cells( self, board : np.array ) -> int :
         """
@@ -57,7 +47,7 @@ class AIPlayer:
         my_player_number = self.player_number
         is_popout = action[1]
         column = action[0]
-        next_state = state # to be returned by this function
+        next_state = (state[0]+0,state[1]) # to be returned by this function
         if is_popout:
             next_state[1][player] = Integer(next_state[1][player].get_int()-1)
             # next_state[1][player].decrement() # players pop out moves decreases
@@ -88,14 +78,46 @@ class AIPlayer:
         valid_actions  = get_valid_actions(adversary_number, state)
         total_number_of_valid_actions = len(valid_actions)
         if( total_number_of_valid_actions == 0 ):
-            return get_pts(self.player_number, state[0])
+            v1 = get_pts(self.player_number, state[0])
+            v2 = get_pts(3-self.player_number,state[0])
+            return v1**2-v2**2
         sum_of_children = 0
         for action in valid_actions:
+            self.counter += 1
             next_state = self.apply_action(action, state, adversary_number)
+            self.depth -= 1
             child_value, _ = self.expectimax_node(next_state)
+            self.depth += 1
             sum_of_children += child_value
         
         return sum_of_children / total_number_of_valid_actions
+    def evaluation_node( self, state : Tuple[np.array, Dict[int, Integer]] ) : 
+        """
+            returns the Tuple [ max of all expectation node among all children, best_Action  ] 
+        """
+        my_player_number = 3-self.player_number
+        valid_actions  = get_valid_actions(my_player_number, state)
+        total_number_of_valid_actions = len(valid_actions)
+        if( total_number_of_valid_actions == 0 ) or (self.depth == 0):
+            # print(state)
+            # return (get_pts(my_player_number, state[0]), None)
+            v1 = get_pts(my_player_number, state[0])
+            v2 = get_pts(3-my_player_number,state[0])
+            return (v1**2-v2**2)
+        best_value, best_action = None, None       
+        for action in valid_actions:
+            self.counter += 1
+            next_state = self.apply_action(action, state, my_player_number)
+            self.depth -= 1
+            child_value,_ = self.minimax_node(next_state)
+            self.depth += 1
+            if( best_value is None ):
+                best_action = action
+                best_value = child_value
+            elif( child_value < best_value ):
+                best_value = child_value
+                best_action = action
+        return best_value
 
 
 
@@ -106,10 +128,15 @@ class AIPlayer:
         my_player_number = self.player_number
         valid_actions  = get_valid_actions(my_player_number, state)
         total_number_of_valid_actions = len(valid_actions)
-        if( total_number_of_valid_actions == 0 ):
-            return (get_pts(my_player_number, state[0]), None)
+        if( total_number_of_valid_actions == 0 ) or (self.depth == 0):
+            # print(state)
+            # return (get_pts(my_player_number, state[0]), None)
+            v1 = get_pts(my_player_number, state[0])
+            v2 = get_pts(3-my_player_number,state[0])
+            return (v1**2-v2**2,None)
         best_value, best_action = None, None       
         for action in valid_actions:
+            self.counter += 1
             next_state = self.apply_action(action, state, my_player_number)
             child_value = self.expectation_node(next_state)
             if( best_value is None ):
@@ -119,6 +146,61 @@ class AIPlayer:
                 best_value = child_value
                 best_action = action
         return (best_value, best_action)
+    def minimax_node( self, state : Tuple[np.array, Dict[int, Integer]] ) : 
+        """
+            returns the Tuple [ max of all expectation node among all children, best_Action  ] 
+        """
+        my_player_number = self.player_number
+        valid_actions  = get_valid_actions(my_player_number, state)
+        total_number_of_valid_actions = len(valid_actions)
+        if( total_number_of_valid_actions == 0 ) or (self.depth == 0):
+            # print(state)
+            # return (get_pts(my_player_number, state[0]), None)
+            v1 = get_pts(self.player_number, state[0])
+            v2 = get_pts(3-self.player_number,state[0])
+            return (v1**2-v2**2,None)
+        best_value, best_action = None, None       
+        for action in valid_actions:
+            # self.counter += 1
+            next_state = self.apply_action(action, state, my_player_number)
+            # self.depth -= 1
+            child_value = self.evaluation_node(next_state)
+            # self.depth += 1
+            if( best_value is None ):
+                best_action = action
+                best_value = child_value
+            elif( child_value > best_value ):
+                best_value = child_value
+                best_action = action
+        return (best_value, best_action)
+    def get_minimax_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
+        """
+        Given the current state of the board, return the next move based on
+        the Expecti max algorithm.
+        This will play against the random player, who chooses any valid move
+        with equal probability
+        :param state: Contains:
+                        1. board
+                            - a numpy array containing the state of the board using the following encoding:
+                            - the board maintains its same two dimensions
+                                - row 0 is the top of the board and so is the last row filled
+                            - spaces that are unoccupied are marked as 0
+                            - spaces that are occupied by player 1 have a 1 in them
+                            - spaces that are occupied by player 2 have a 2 in them
+                        2. Dictionary of int to Integer. It will tell the remaining popout moves given a player
+        :return: action (0 based index of the column and if it is a popout move)
+        """
+        # Do the rest of your implementation here
+        # self.depth = 5
+        ans = self.minimax_node(state)[1]
+        print(self.counter,self.depth)
+        while self.counter < 1000 and self.depth < 200:
+            self.depth += 1
+            ans = self.minimax_node(state)[1]
+            print(self.counter,self.depth)
+        self.counter = 0
+
+        return ans 
         
 
 
@@ -140,5 +222,35 @@ class AIPlayer:
         :return: action (0 based index of the column and if it is a popout move)
         """
         # Do the rest of your implementation here
-        return self.expectimax_node(state)[1]
+        # self.depth = 5
+        ans = self.expectimax_node(state)[1]
+        print(self.counter,self.depth)
+        while self.counter < 1500 and self.depth < 200:
+            self.depth += 1
+            ans = self.expectimax_node(state)[1]
+            print(self.counter,self.depth)
+        self.counter = 0
+
+        return ans 
         # raise NotImplementedError('Whoops I don\'t know what to do')
+    def get_intelligent_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
+        """
+        Given the current state of the board, return the next move
+        This will play against either itself or a human player
+        :param state: Contains:
+                        1. board
+                            - a numpy array containing the state of the board using the following encoding:
+                            - the board maintains its same two dimensions
+                                - row 0 is the top of the board and so is the last row filled
+                            - spaces that are unoccupied are marked as 0
+                            - spaces that are occupied by player 1 have a 1 in them
+                            - spaces that are occupied by player 2 have a 2 in them
+                        2. Dictionary of int to Integer. It will tell the remaining popout moves given a player
+        :return: action (0 based index of the column and if it is a popout move)
+        """
+        ans = self.get_minimax_move(state)
+        # print(self.counter)
+        # self.counter = 0
+        return ans
+        # raise NotImplementedError('Whoops I don\'t know what to do')
+
