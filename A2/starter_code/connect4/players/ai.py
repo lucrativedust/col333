@@ -1,3 +1,4 @@
+from copy import copy
 import random
 from typing import Dict, List, Tuple
 import time
@@ -53,7 +54,8 @@ class AIPlayer:
         my_player_number = self.player_number
         is_popout = action[1]
         column = action[0]
-        next_state = (state[0]+0,state[1]) # to be returned by this function
+        # next_state = (state[0]+0,state[1]) # to be returned by this function
+        next_state = copy(state)
         if is_popout:
             next_state[1][player] = Integer(next_state[1][player].get_int()-1)
             # next_state[1][player].decrement() # players pop out moves decreases
@@ -115,7 +117,7 @@ class AIPlayer:
             self.counter += 1
             next_state = self.apply_action(action, state, my_player_number)
             self.depth -= 1
-            child_value,_ = self.minimax_node(next_state, alpha, beta)
+            child_value = self.minimax_node(next_state, alpha, beta)[0]
             self.depth += 1
             if( best_value is None ):
                 # best_action = action
@@ -144,13 +146,15 @@ class AIPlayer:
         if( total_number_of_valid_actions == 0 ) or (self.depth == 0):
             # print(state)
             # return (get_pts(my_player_number, state[0]), None)
-            
+            print(valid_actions,self.depth)
             return (self.evaluation(state),None)
         best_value, best_action = None, None       
         for action in valid_actions:
             self.counter += 1
             next_state = self.apply_action(action, state, my_player_number)
+            self.depth -= 1
             child_value = self.expectation_node(next_state)
+            self.depth += 1
             if( best_value is None ):
                 best_action = action
                 best_value = child_value
@@ -166,13 +170,12 @@ class AIPlayer:
         valid_actions  = get_valid_actions(my_player_number, state)
         total_number_of_valid_actions = len(valid_actions)
         if( total_number_of_valid_actions == 0 ) or (self.depth == 0):
-            # print(state)
-            # return (get_pts(my_player_number, state[0]), None)
-            v1 = get_pts(self.player_number, state[0])
-            v2 = get_pts(3-self.player_number,state[0])
-            return (self.evaluation(state),None)
-        best_value, best_action = None, None       
+            # if( total_number_of_valid_actions == 0 ):
+            #     print("herewego")
+            return (self.evaluation(state),None,valid_actions)
+        best_value, best_action = None, None 
         for action in valid_actions:
+            print(action,self.depth)
             # self.counter += 1
             next_state = self.apply_action(action, state, my_player_number)
             self.depth -= 1
@@ -195,7 +198,7 @@ class AIPlayer:
                 
         if best_action is None:
             print(best_value, len(valid_actions))
-        return (best_value, best_action)
+        return (best_value, best_action,valid_actions)
     def get_minimax_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
         """
         Given the current state of the board, return the next move based on
@@ -219,14 +222,15 @@ class AIPlayer:
         ans = self.minimax_node(state)
         print(self.counter,self.depth,time.time()-st)
         # while self.counter < 5000 and self.depth < 100 and time.time()-st < self.time/10:
-        while self.depth < 20 and time.time()-st < self.time/6:
+        while self.depth < 5 and time.time()-st < self.time/6:
             self.counter = 0
             self.depth += 1
             ans = self.minimax_node(state)
             # if self.depth %  == 0:
-            print(self.counter,self.depth,time.time()-st)
+            # print(self.counter,self.depth,time.time()-st)
         self.counter = 0
         print(ans)
+        time.sleep(1)
         return ans[1] 
         
 
@@ -250,15 +254,22 @@ class AIPlayer:
         """
         # Do the rest of your implementation here
         # self.depth = 5
-        ans = self.expectimax_node(state)[1]
+        ans = self.expectimax_node(state)
+        print(ans)
         # print(self.counter,self.depth)
-        while self.counter < 1000 and self.depth < 200:
+        while self.counter < 1000 and self.depth < 10:
             self.depth += 1
-            ans = self.expectimax_node(state)[1]
+            x = self.expectimax_node(state)
+            if x[1] is not None:
+                ans = x
+            else:
+                break
+            # print(ans)
             # print(self.counter,self.depth)
-        self.counter = 0
-
-        return ans 
+        # self.counter = 0
+        time.sleep(1)
+        print(ans)
+        return ans[1]
         # raise NotImplementedError('Whoops I don\'t know what to do')
     def get_intelligent_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
         """
