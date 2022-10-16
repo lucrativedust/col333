@@ -1,6 +1,6 @@
 import random
 from typing import Dict, List, Tuple
-
+import time
 import numpy as np
 from connect4.utils import Integer, get_pts, get_valid_actions
 
@@ -97,7 +97,7 @@ class AIPlayer:
             sum_of_children += child_value
         
         return sum_of_children / total_number_of_valid_actions
-    def evaluation_node( self, state : Tuple[np.array, Dict[int, Integer]] ) : 
+    def evaluation_node( self, state : Tuple[np.array, Dict[int, Integer]] , alpha , beta) : 
         """
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
         """
@@ -115,7 +115,7 @@ class AIPlayer:
             self.counter += 1
             next_state = self.apply_action(action, state, my_player_number)
             self.depth -= 1
-            child_value,_ = self.minimax_node(next_state)
+            child_value,_ = self.minimax_node(next_state, alpha, beta)
             self.depth += 1
             if( best_value is None ):
                 # best_action = action
@@ -123,6 +123,13 @@ class AIPlayer:
             elif( child_value < best_value ):
                 best_value = child_value
                 # best_action = action
+            if (beta is None) :
+                beta = best_value
+            elif (best_value < beta):
+                beta = best_value
+            if (alpha is not None):
+                if beta <= alpha:
+                    break
         return best_value
 
 
@@ -151,7 +158,7 @@ class AIPlayer:
                 best_value = child_value
                 best_action = action
         return (best_value, best_action)
-    def minimax_node( self, state : Tuple[np.array, Dict[int, Integer]] ) : 
+    def minimax_node( self, state : Tuple[np.array, Dict[int, Integer]] , alpha = None, beta = None) : 
         """
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
         """
@@ -169,7 +176,7 @@ class AIPlayer:
             # self.counter += 1
             next_state = self.apply_action(action, state, my_player_number)
             # self.depth -= 1
-            child_value = self.evaluation_node(next_state)
+            child_value = self.evaluation_node(next_state, alpha, beta)
             # self.depth += 1
             if( best_value is None ):
                 best_action = action
@@ -177,6 +184,16 @@ class AIPlayer:
             elif( child_value > best_value ):
                 best_value = child_value
                 best_action = action
+            if (alpha is None) :
+                alpha = best_value
+            elif (best_value > alpha):
+                alpha = best_value
+            if (beta is not None):
+                if beta <= alpha:
+                    break
+
+                
+
         return (best_value, best_action)
     def get_minimax_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
         """
@@ -197,12 +214,15 @@ class AIPlayer:
         """
         # Do the rest of your implementation here
         # self.depth = 5
+        st = time.time()
         ans = self.minimax_node(state)[1]
-        # print(self.counter,self.depth)
-        while self.counter < 1000 and self.depth < 200:
+        print(self.counter,self.depth,time.time()-st)
+        while self.counter < 5000 and self.depth < 100 and time.time()-st < self.time/20:
+            self.counter = 0
             self.depth += 1
             ans = self.minimax_node(state)[1]
-            # print(self.counter,self.depth)
+            # if self.depth %  == 0:
+            print(self.counter,self.depth,time.time()-st)
         self.counter = 0
 
         return ans 
