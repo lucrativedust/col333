@@ -82,6 +82,8 @@ class AIPlayer:
         """
             returns the mean of value of all children
         """
+        if( (self.expectimax_st + self.time ) - time.time() < 0.3 ):
+            raise Exception("Time out")       
         adversary_number = 3 - self.player_number
         valid_actions  = get_valid_actions(adversary_number, state)
         total_number_of_valid_actions = len(valid_actions)
@@ -140,6 +142,9 @@ class AIPlayer:
         """
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
         """
+        if( (self.expectimax_st + self.time ) - time.time() < 0.3 ):
+            raise Exception("Time out")
+
         my_player_number = self.player_number
         valid_actions  = get_valid_actions(my_player_number, state)
         total_number_of_valid_actions = len(valid_actions)
@@ -253,14 +258,20 @@ class AIPlayer:
         :return: action (0 based index of the column and if it is a popout move)
         """
         # Do the rest of your implementation here
-        # self.depth = 5
-        ans = self.expectimax_node(state)
+        self.depth = 1
+        self.expectimax_st = time.time()        
+        # ans = self.expectimax_node(state)
         # print(ans)
         # print(self.counter,self.depth)
-        while self.counter < 1000 and self.depth < 100:
+        # while self.counter < 1000 and self.depth < 100:
+        while self.depth < 100:
             self.depth += 1
             self.counter = 0
-            ans = self.expectimax_node(state)
+            try:
+                ans = self.expectimax_node(state)
+            except:
+                print("Time about to end !!!")
+                break
             # if x[1] is not None:
             #     ans = x
             # else:
