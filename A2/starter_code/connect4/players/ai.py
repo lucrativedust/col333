@@ -105,6 +105,8 @@ class AIPlayer:
         """
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
         """
+        if( (self.intelligent_st + self.time ) - time.time() < 0.5 ):
+            raise Exception("Time out")
         my_player_number = 3-self.player_number
         valid_actions  = get_valid_actions(my_player_number, state)
         total_number_of_valid_actions = len(valid_actions)
@@ -171,6 +173,8 @@ class AIPlayer:
         """
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
         """
+        if( (self.intelligent_st + self.time ) - time.time() < 0.5 ):
+            raise Exception("Time out")
         my_player_number = self.player_number
         valid_actions  = get_valid_actions(my_player_number, state)
         total_number_of_valid_actions = len(valid_actions)
@@ -222,20 +226,24 @@ class AIPlayer:
         :return: action (0 based index of the column and if it is a popout move)
         """
         # Do the rest of your implementation here
-        # self.depth = 5
-        st = time.time()
-        ans = self.minimax_node(state)
-        print(self.counter,self.depth,time.time()-st)
+        self.depth = 1
+        self.intelligent_st = time.time()
+        # ans = self.minimax_node(state)
+        # print(self.counter,self.depth,time.time()-self.intelligent_st)
         # while self.counter < 5000 and self.depth < 100 and time.time()-st < self.time/10:
-        while self.depth < 100 and time.time()-st < self.time/6:
+        while self.depth < 100:
             self.counter = 0
             self.depth += 1
-            ans = self.minimax_node(state)
+            try:
+                ans = self.minimax_node(state)
+            except:
+                print("Time about to end")
+                break
             # if self.depth %  == 0:
             # print(self.counter,self.depth,time.time()-st)
-        self.counter = 0
-        print(ans)
-        time.sleep(1)
+            self.counter = 0
+        # print(ans)
+        # time.sleep(1)
         return ans[1] 
         
 
@@ -280,7 +288,7 @@ class AIPlayer:
             # print(self.counter,self.depth)
         # self.counter = 0
         # time.sleep(1)
-        # print(ans)
+        print(ans)
         return ans[1]
         # raise NotImplementedError('Whoops I don\'t know what to do')
     def get_intelligent_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
@@ -301,7 +309,7 @@ class AIPlayer:
         ans = self.get_minimax_move(state)
         # print(self.counter)
         # self.counter = 0
-        print(ans)
+        # print(ans)
         return ans
         # raise NotImplementedError('Whoops I don\'t know what to do')
 
