@@ -20,7 +20,7 @@ class AIPlayer:
         self.type = 'ai'
         self.player_string = 'Player {}:ai'.format(player_number)
         self.time = time
-        self.depth = 2
+        self.depth = 4
         self.counter = 0
         # Do the rest of your implementation here
 
@@ -110,7 +110,7 @@ class AIPlayer:
             v1 = get_pts(my_player_number, state[0])
             v2 = get_pts(3-my_player_number,state[0])
             return self.evaluation(state)
-        best_value, best_action = None, None       
+        best_value = None
         for action in valid_actions:
             self.counter += 1
             next_state = self.apply_action(action, state, my_player_number)
@@ -175,9 +175,9 @@ class AIPlayer:
         for action in valid_actions:
             # self.counter += 1
             next_state = self.apply_action(action, state, my_player_number)
-            # self.depth -= 1
+            self.depth -= 1
             child_value = self.evaluation_node(next_state, alpha, beta)
-            # self.depth += 1
+            self.depth += 1
             if( best_value is None ):
                 best_action = action
                 best_value = child_value
@@ -193,7 +193,8 @@ class AIPlayer:
                     break
 
                 
-
+        if best_action is None:
+            print(best_value, len(valid_actions))
         return (best_value, best_action)
     def get_minimax_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
         """
@@ -215,17 +216,18 @@ class AIPlayer:
         # Do the rest of your implementation here
         # self.depth = 5
         st = time.time()
-        ans = self.minimax_node(state)[1]
+        ans = self.minimax_node(state)
         print(self.counter,self.depth,time.time()-st)
-        while self.counter < 5000 and self.depth < 100 and time.time()-st < self.time/20:
+        # while self.counter < 5000 and self.depth < 100 and time.time()-st < self.time/10:
+        while self.depth < 20 and time.time()-st < self.time/6:
             self.counter = 0
             self.depth += 1
-            ans = self.minimax_node(state)[1]
+            ans = self.minimax_node(state)
             # if self.depth %  == 0:
             print(self.counter,self.depth,time.time()-st)
         self.counter = 0
-
-        return ans 
+        print(ans)
+        return ans[1] 
         
 
 
@@ -250,7 +252,7 @@ class AIPlayer:
         # self.depth = 5
         ans = self.expectimax_node(state)[1]
         # print(self.counter,self.depth)
-        while self.counter < 1500 and self.depth < 200:
+        while self.counter < 1000 and self.depth < 200:
             self.depth += 1
             ans = self.expectimax_node(state)[1]
             # print(self.counter,self.depth)
