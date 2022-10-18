@@ -1,17 +1,88 @@
 from copy import deepcopy
 import random
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 import time
 import numpy as np
 from connect4.utils import Integer, get_pts, get_valid_actions
-
+from connect4.config import win_pts
+from queue import PriorityQueue
+import traceback
 
 class AIPlayer:
+    
+    def get_row_score(self, player_number: int, row: Union[np.array, List[int]]):
+        score = 0
+        n = len(row)
+        j = 0
+        while j < n:
+            if row[j] == player_number:
+                count = 0
+                while j < n and row[j] == player_number:
+                    count += 1
+                    j += 1
+                k = len(self.win_pts) - 1
+                score += self.win_pts[count % k] + (count // k) * self.win_pts[k]
+            else:
+                j += 1
+        return score
+
+
+    def get_diagonals_primary(self, board: np.array) -> List[int]:
+        m, n = board.shape
+        for k in range(n + m - 1):
+            diag = []
+            for j in range(max(0, k - m + 1), min(n, k + 1)):
+                i = k - j
+                diag.append(board[i, j])
+            yield diag
+
+
+    def get_diagonals_secondary(self, board: np.array) -> List[int]:
+        m, n = board.shape
+        for k in range(n + m - 1):
+            diag = []
+            for x in range(max(0, k - m + 1), min(n, k + 1)):
+                j = n - 1 - x
+                i = k - x
+                diag.append(board[i][j])
+            yield diag
+
+
+    def get_pts(self,player_number: int, board: np.array) -> int:
+        """
+        :return: Returns the total score of player (with player number) on the board
+        """
+        score = 0
+        score2 = 0
+        m, n = board.shape
+        # score in rows
+        for i in range(m):
+            score += self.get_row_score(player_number, board[i])
+            score2 += self.get_row_score(3-player_number, board[i])
+        # score in columns
+        for j in range(n):
+            score += self.get_row_score(player_number, board[:, j])
+            score2 += self.get_row_score(3-player_number, board[:, j])
+        # scores in diagonals_primary
+        for diag in self.get_diagonals_primary(board):
+            score += self.get_row_score(player_number, diag)
+            score2 += self.get_row_score(3-player_number, diag)
+
+        # scores in diagonals_secondary
+        for diag in self.get_diagonals_secondary(board):
+            score += self.get_row_score(player_number, diag)
+            score2 += self.get_row_score(3-player_number, diag)
+        return (score, score2)
     def evaluation(self,state):
         my_player_number = self.player_number
-        v1 = get_pts(my_player_number, state[0])
-        v2 = get_pts(3-my_player_number,state[0])
-        return v1**2-(1 + 1.5*(self.get_number_of_filled_cells(state[0])/(state[0].shape[0]*state[0].shape[1])))*v2**2
+        frc = (self.get_number_of_filled_cells(state[0])/(state[0].shape[0]*state[0].shape[1]))
+        self.win_pts = [i**((2-frc)) for i in win_pts]
+        (v1,v2) = self.get_pts(my_player_number, state[0])
+        # v2 = self.get_pts(3-my_player_number,state[0])
+        # return v1**2-(1 - frc*(frc-1))*v2**2
+        return v1**2-(1 + 1.5*frc)*v2**2
+        # return (v1+1)/(v2+1)
+    
     def __init__(self, player_number: int, time: int):
         """
         :param player_number: Current player number
@@ -21,8 +92,15 @@ class AIPlayer:
         self.type = 'ai'
         self.player_string = 'Player {}:ai'.format(player_number)
         self.time = time
-        self.depth = 4
+        self.depth = 5-player_number
+        self.bmu = 0
+        self.maxd = 0
         self.counter = 0
+        self.newc = 0
+        self.cn1 = 0
+        self.cn2 = 0
+        self.store_action = PriorityQueue()
+        self.win_pts = win_pts
         # Do the rest of your implementation here
 
     
@@ -30,7 +108,18 @@ class AIPlayer:
 
         # Do the rest of your implementation here
         # raise NotImplementedError('Whoops I don\'t know what to do')
-    
+    def key(self, action : Tuple[int, bool]):
+        x = action[0]*2+action[1]
+        return x
+    # def store(self, action : Tuple[int, bool], val):
+    #     x = action[0]*2+action[1]
+    #     self.store_action[x] = val
+    # def check(self,action):
+    #     if action[0]*2+action[1] in self.store_action:
+    #         return (True, self.store_action[action[0]*2+action[1]])
+    #     else:
+    #         return (False, 0)
+
     def get_number_of_filled_cells( self, board : np.array ) -> int :
         """
             returns the number of filled cells on the board
@@ -101,11 +190,12 @@ class AIPlayer:
             sum_of_children += child_value
         
         return sum_of_children / total_number_of_valid_actions
-    def evaluation_node( self, state : Tuple[np.array, Dict[int, Integer]] , alpha , beta) : 
+    def evaluation_node( self, state : Tuple[np.array, Dict[int, Integer]],store , alpha , beta) : 
         """
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
         """
         if( (self.intelligent_st + self.time ) - time.time() < 0.5 ):
+            print(self.counter)
             raise Exception("Time out")
         my_player_number = 3-self.player_number
         valid_actions  = get_valid_actions(my_player_number, state)
@@ -117,25 +207,71 @@ class AIPlayer:
             v2 = get_pts(3-my_player_number,state[0])
             return self.evaluation(state)
         best_value = None
-        for action in valid_actions:
+        explored = {-1}
+        storec = PriorityQueue()
+        itt = 0
+        while not store.empty():
             self.counter += 1
-            next_state = self.apply_action(action, state, my_player_number)
-            self.depth -= 1
-            child_value = self.minimax_node(next_state, alpha, beta)[0]
-            self.depth += 1
-            if( best_value is None ):
-                # best_action = action
-                best_value = child_value
-            elif( child_value < best_value ):
-                best_value = child_value
-                # best_action = action
-            if (beta is None) :
-                beta = best_value
-            elif (best_value < beta):
-                beta = best_value
-            if (alpha is not None):
-                if beta <= alpha:
-                    break
+            itt += 1
+            k = store.get()
+            action = k[1]
+            explored.add(action)
+            if self.maxd - self.depth < 2 and itt > 3:
+                # print("Painn", self.depth, self.maxd - self.depth, itt)
+                self.cn1 += 1
+                # cnd = False
+            if self.maxd - self.depth < 4 and itt > 6:
+                self.cn2 += 1
+            if itt < 40:
+                next_state = self.apply_action(action, state, my_player_number)
+                self.depth -= 1
+                child_value = self.minimax_node(next_state, k[2], alpha, beta)[0]
+                self.depth += 1
+                storec.put((-child_value,k[1],k[2]))
+                if( best_value is None ):
+                    # best_action = action
+                    best_value = child_value
+                elif( child_value < best_value ):
+                    self.newc += 1
+                    best_value = child_value
+                    # best_action = action
+                if (beta is None) :
+                    beta = best_value
+                elif (best_value < beta):
+                    beta = best_value
+                if (alpha is not None):
+                    if beta <= alpha:
+                        break
+        if( alpha is not None):
+            if (beta is not None):
+                if  beta <= alpha:
+                    return best_value
+        while not storec.empty():
+            t = storec.get()
+            store.put(t)
+        for action in valid_actions:
+            if action not in explored:
+                explored.add(action)
+                newpq = PriorityQueue()
+                self.counter += 1
+                next_state = self.apply_action(action, state, my_player_number)
+                self.depth -= 1
+                child_value = self.minimax_node(next_state, newpq, alpha, beta)[0]
+                store.put((child_value,action,newpq))
+                self.depth += 1
+                if( best_value is None ):
+                    # best_action = action
+                    best_value = child_value
+                elif( child_value < best_value ):
+                    best_value = child_value
+                    # best_action = action
+                if (beta is None) :
+                    beta = best_value
+                elif (best_value < beta):
+                    beta = best_value
+                if (alpha is not None):
+                    if beta <= alpha:
+                        break
         return best_value
 
 
@@ -169,11 +305,12 @@ class AIPlayer:
                 best_value = child_value
                 best_action = action
         return (best_value, best_action)
-    def minimax_node( self, state : Tuple[np.array, Dict[int, Integer]] , alpha = None, beta = None) : 
+    def minimax_node( self, state : Tuple[np.array, Dict[int, Integer]],store , alpha = None, beta = None) : 
         """
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
         """
         if( (self.intelligent_st + self.time ) - time.time() < 0.5 ):
+            print(self.counter)
             raise Exception("Time out")
         my_player_number = self.player_number
         valid_actions  = get_valid_actions(my_player_number, state)
@@ -182,27 +319,91 @@ class AIPlayer:
             # if( total_number_of_valid_actions == 0 ):
             #     print("herewego")
             return (self.evaluation(state),None,valid_actions)
-        best_value, best_action = None, None 
+        best_value, best_action = None, None
+        explored = {-1}
+        # storec = deepcopy(store)
+        storec = PriorityQueue()
+        itt = 0
+        while not store.empty():
+            self.counter += 1
+            itt += 1
+            k = store.get()
+            # print(k)
+            action = k[1]
+            explored.add(action)
+            cnd = True
+            if self.maxd - self.depth < 2 and itt > 3:
+                # print("Painn", self.depth, self.maxd - self.depth, itt)
+                self.cn1 += 1
+                # cnd = False
+            if self.maxd - self.depth < 4 and itt > 6:
+                self.cn2 += 1
+                # print("Pain", self.depth, self.maxd - self.depth, itt)
+            if cnd:
+                next_state = self.apply_action(action, state, my_player_number)
+                self.depth -= 1
+                child_value = self.evaluation_node(next_state, k[2], alpha, beta)
+                self.depth += 1
+                storec.put((-child_value,k[1],k[2]))
+                if( best_value is None ):
+                    best_action = action
+                    best_value = child_value
+                elif( child_value > best_value ):
+                    best_value = child_value
+                    best_action = action
+                    self.newc += 1
+                    if self.depth == self.maxd:
+                        # print("best move updated")
+                        self.bmu += 1
+                    # if self.depth >= 4:
+                    #     if itt > 3:
+                    #         print(self.depth-self.maxd, itt)
+                    
+                if (alpha is None) :
+                    alpha = best_value
+                elif (best_value > alpha):
+                    alpha = best_value
+                if (beta is not None):
+                    if beta <= alpha:
+                        break
+        while not storec.empty():
+            t = storec.get()
+            store.put(t)
+        if( alpha is not None):
+            if (beta is not None):
+                if  beta <= alpha:
+                    # print(len(valid_actions)+1-len(explored))
+                    return (best_value, best_action,valid_actions)
+
         for action in valid_actions:
             # print(action,self.depth)
-            # self.counter += 1
-            next_state = self.apply_action(action, state, my_player_number)
-            self.depth -= 1
-            child_value = self.evaluation_node(next_state, alpha, beta)
-            self.depth += 1
-            if( best_value is None ):
-                best_action = action
-                best_value = child_value
-            elif( child_value > best_value ):
-                best_value = child_value
-                best_action = action
-            if (alpha is None) :
-                alpha = best_value
-            elif (best_value > alpha):
-                alpha = best_value
-            if (beta is not None):
-                if beta <= alpha:
-                    break
+            self.counter += 1
+            if action not in explored:
+                explored.add(action)
+                newpq = PriorityQueue()
+                next_state = self.apply_action(action, state, my_player_number)
+                # dec = False
+                # if self.depth > 2:
+                #     self.depth -= 1
+
+                self.depth -= 1
+                child_value = self.evaluation_node(next_state, newpq, alpha, beta)
+                self.depth += 1
+                store.put((-child_value,action,newpq))
+
+                if( best_value is None ):
+                    best_action = action
+                    best_value = child_value
+                elif( child_value > best_value ):
+                    best_value = child_value
+                    best_action = action
+                if (alpha is None) :
+                    alpha = best_value
+                elif (best_value > alpha):
+                    alpha = best_value
+                if (beta is not None):
+                    if beta <= alpha:
+                        break
 
                 
         # if best_action is None:
@@ -226,24 +427,34 @@ class AIPlayer:
         :return: action (0 based index of the column and if it is a popout move)
         """
         # Do the rest of your implementation here
-        self.depth = 1
+        # self.depth = 4
+        state[1][1] = Integer(min(state[1][1].get_int(),1))
+        state[1][2] = Integer(min(state[1][2].get_int(),1))
+        self.maxd = self.depth
         self.intelligent_st = time.time()
-        # ans = self.minimax_node(state)
+        ans = self.minimax_node(state,self.store_action)
         # print(self.counter,self.depth,time.time()-self.intelligent_st)
         # while self.counter < 5000 and self.depth < 100 and time.time()-st < self.time/10:
-        while self.depth < 100:
+        while self.depth < 20:
             self.counter = 0
             self.depth += 1
+            self.maxd = self.depth
+            # self.newc = 0
             try:
-                ans = self.minimax_node(state)
-            except:
-                print("Time about to end")
+                ans = self.minimax_node(state,self.store_action)
+                print(self.counter,self.depth,end="; ")
+                # print(self.counter,self.newc,self.depth,time.time()-self.intelligent_st)
+            except Exception as e:
+                # print(e.)
+                # print(traceback.format_exc())
+                print(e,self.bmu,self.cn1,self.cn2,self.maxd)
                 break
             # if self.depth %  == 0:
             # print(self.counter,self.depth,time.time()-st)
-            self.counter = 0
+            # self.counter = 0
         # print(ans)
         # time.sleep(1)
+
         return ans[1] 
         
 
