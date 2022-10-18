@@ -4,14 +4,20 @@ from typing import Dict, List, Tuple
 import time
 import numpy as np
 from connect4.utils import Integer, get_pts, get_valid_actions
-
+import traceback
+from math import sqrt
 
 class AIPlayer:
     def evaluation(self,state):
         my_player_number = self.player_number
         v1 = get_pts(my_player_number, state[0])
         v2 = get_pts(3-my_player_number,state[0])
-        return v1**2-(1 + 1.5*(self.get_number_of_filled_cells(state[0])/(state[0].shape[0]*state[0].shape[1])))*v2**2
+        board_cells = (state[0].shape[0]*state[0].shape[1])
+        frc = (self.get_number_of_filled_cells(state[0])/(state[0].shape[0]*state[0].shape[1]))
+        temp = v1**2-(1 + 1.5*frc)*v2**2
+        player1_popouts_remaining = (state[1][1])
+        temp -= (frc-0.5)*(player1_popouts_remaining.get_int())*(sqrt(board_cells))/1
+        return temp
     def __init__(self, player_number: int, time: int):
         """
         :param player_number: Current player number
@@ -288,7 +294,7 @@ class AIPlayer:
             # print(self.counter,self.depth)
         # self.counter = 0
         # time.sleep(1)
-        print(ans)
+        # print(ans)
         return ans[1]
         # raise NotImplementedError('Whoops I don\'t know what to do')
     def get_intelligent_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
@@ -307,7 +313,6 @@ class AIPlayer:
         :return: action (0 based index of the column and if it is a popout move)
         """
         ans = self.get_minimax_move(state)
-        # print(self.counter)
         # self.counter = 0
         # print(ans)
         return ans
