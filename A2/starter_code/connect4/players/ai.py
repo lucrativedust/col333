@@ -81,7 +81,7 @@ class AIPlayer:
         (v1,v2) = self.get_pts(my_player_number, state[0])
         # v2 = self.get_pts(3-my_player_number,state[0])
         # return v1**2-(1 - frc*(frc-1))*v2**2
-        return v1**2-(1 + 1.5*frc)*v2**2
+        return v1-(1 + 0.5*frc)*v2
         # return (v1+1)/(v2+1)
     
     def __init__(self, player_number: int, time: int):
@@ -107,9 +107,17 @@ class AIPlayer:
     def move_cost(self, old_state, action):
         colind = action[0]
         m,n = old_state[0].shape
-        dismid = abs(n/2 - 1 - colind)
+        dismid = abs(n/2 - colind)
         ans = 0
-        ans -= dismid
+        if not action[1]:
+            ans -= dismid
+        if old_state[0][m-1][colind] == self.player_number and action[1]:
+            ans -= 40
+        if colind%2 == self.player_number-1 and not action[1] and old_state[0][m-1][colind] == 0:
+            ans -= 5*old_state[1][1].get_int()
+
+        # else:
+        #     ans += dismid
         return ans
 
 
