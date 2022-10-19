@@ -6,6 +6,7 @@ import numpy as np
 from connect4.utils import Integer, get_pts, get_valid_actions
 from connect4.config import win_pts
 from queue import PriorityQueue
+from math import log1p
 import traceback
 
 class AIPlayer:
@@ -92,7 +93,7 @@ class AIPlayer:
         self.type = 'ai'
         self.player_string = 'Player {}:ai'.format(player_number)
         self.time = time
-        self.depth = 5-player_number
+        self.depth = 4
         self.bmu = 0
         self.maxd = 0
         self.counter = 0
@@ -101,24 +102,8 @@ class AIPlayer:
         self.cn2 = 0
         self.store_action = PriorityQueue()
         self.win_pts = win_pts
-        # Do the rest of your implementation here
-
-    
 
 
-        # Do the rest of your implementation here
-        # raise NotImplementedError('Whoops I don\'t know what to do')
-    def key(self, action : Tuple[int, bool]):
-        x = action[0]*2+action[1]
-        return x
-    # def store(self, action : Tuple[int, bool], val):
-    #     x = action[0]*2+action[1]
-    #     self.store_action[x] = val
-    # def check(self,action):
-    #     if action[0]*2+action[1] in self.store_action:
-    #         return (True, self.store_action[action[0]*2+action[1]])
-    #     else:
-    #         return (False, 0)
 
     def get_number_of_filled_cells( self, board : np.array ) -> int :
         """
@@ -128,11 +113,7 @@ class AIPlayer:
         zero_cells = np.count_nonzero(board==0)
         return total_cells - zero_cells
 
-    def get_player_number( self, board : np.array ) -> int : 
 
-        return self.player_number
-        # filled_cells = get_number_of_filled_cells(board)
-        # return 1 when (filled_cells % 2 == 0) else 2
 
     def apply_action( self, action : Tuple[int, bool],  state : Tuple[np.array, Dict[int, Integer]], player : int ) -> Tuple[np.array, Dict[int, Integer]] :
         """
@@ -140,14 +121,11 @@ class AIPlayer:
             player: player number playing the action
         """
         m, n = state[0].shape
-        my_player_number = self.player_number
         is_popout = action[1]
         column = action[0]
-        # next_state = (state[0]+0,state[1]) # to be returned by this function
         next_state = deepcopy(state)
         if is_popout:
             next_state[1][player] = Integer(next_state[1][player].get_int()-1)
-            # next_state[1][player].decrement() # players pop out moves decreases
             next_state[0][0][column] = 0  # first value in column will become zero
             # shift values in the columns
             for row in range(m-1,0,-1):
@@ -316,29 +294,18 @@ class AIPlayer:
         valid_actions  = get_valid_actions(my_player_number, state)
         total_number_of_valid_actions = len(valid_actions)
         if( total_number_of_valid_actions == 0 ) or (self.depth == 0):
-            # if( total_number_of_valid_actions == 0 ):
-            #     print("herewego")
             return (self.evaluation(state),None,valid_actions)
         best_value, best_action = None, None
         explored = {-1}
-        # storec = deepcopy(store)
         storec = PriorityQueue()
         itt = 0
         while not store.empty():
             self.counter += 1
             itt += 1
             k = store.get()
-            # print(k)
             action = k[1]
             explored.add(action)
             cnd = True
-            if self.maxd - self.depth < 2 and itt > 3:
-                # print("Painn", self.depth, self.maxd - self.depth, itt)
-                self.cn1 += 1
-                # cnd = False
-            if self.maxd - self.depth < 4 and itt > 6:
-                self.cn2 += 1
-                # print("Pain", self.depth, self.maxd - self.depth, itt)
             if cnd:
                 next_state = self.apply_action(action, state, my_player_number)
                 self.depth -= 1
@@ -351,14 +318,6 @@ class AIPlayer:
                 elif( child_value > best_value ):
                     best_value = child_value
                     best_action = action
-                    self.newc += 1
-                    if self.depth == self.maxd:
-                        # print("best move updated")
-                        self.bmu += 1
-                    # if self.depth >= 4:
-                    #     if itt > 3:
-                    #         print(self.depth-self.maxd, itt)
-                    
                 if (alpha is None) :
                     alpha = best_value
                 elif (best_value > alpha):
@@ -372,20 +331,14 @@ class AIPlayer:
         if( alpha is not None):
             if (beta is not None):
                 if  beta <= alpha:
-                    # print(len(valid_actions)+1-len(explored))
                     return (best_value, best_action,valid_actions)
 
         for action in valid_actions:
-            # print(action,self.depth)
             self.counter += 1
             if action not in explored:
                 explored.add(action)
                 newpq = PriorityQueue()
                 next_state = self.apply_action(action, state, my_player_number)
-                # dec = False
-                # if self.depth > 2:
-                #     self.depth -= 1
-
                 self.depth -= 1
                 child_value = self.evaluation_node(next_state, newpq, alpha, beta)
                 self.depth += 1
@@ -405,55 +358,28 @@ class AIPlayer:
                     if beta <= alpha:
                         break
 
-                
-        # if best_action is None:
-        #     print(best_value, len(valid_actions))
+
         return (best_value, best_action,valid_actions)
     def get_minimax_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
-        """
-        Given the current state of the board, return the next move based on
-        the Expecti max algorithm.
-        This will play against the random player, who chooses any valid move
-        with equal probability
-        :param state: Contains:
-                        1. board
-                            - a numpy array containing the state of the board using the following encoding:
-                            - the board maintains its same two dimensions
-                                - row 0 is the top of the board and so is the last row filled
-                            - spaces that are unoccupied are marked as 0
-                            - spaces that are occupied by player 1 have a 1 in them
-                            - spaces that are occupied by player 2 have a 2 in them
-                        2. Dictionary of int to Integer. It will tell the remaining popout moves given a player
-        :return: action (0 based index of the column and if it is a popout move)
-        """
+
         # Do the rest of your implementation here
         # self.depth = 4
-        state[1][1] = Integer(min(state[1][1].get_int(),1))
-        state[1][2] = Integer(min(state[1][2].get_int(),1))
+        # state[1][1] = Integer(min(state[1][1].get_int(),1))
+        # state[1][2] = Integer(min(state[1][2].get_int(),1))
         self.maxd = self.depth
         self.intelligent_st = time.time()
         ans = self.minimax_node(state,self.store_action)
-        # print(self.counter,self.depth,time.time()-self.intelligent_st)
-        # while self.counter < 5000 and self.depth < 100 and time.time()-st < self.time/10:
         while self.depth < 20:
             self.counter = 0
             self.depth += 1
             self.maxd = self.depth
-            # self.newc = 0
             try:
                 ans = self.minimax_node(state,self.store_action)
-                print(self.counter,self.depth,end="; ")
-                # print(self.counter,self.newc,self.depth,time.time()-self.intelligent_st)
+                # print(self.counter,self.depth,end="; ")
             except Exception as e:
-                # print(e.)
-                # print(traceback.format_exc())
-                print(e,self.bmu,self.cn1,self.cn2,self.maxd)
+                # print(e,self.bmu,self.cn1,self.cn2,self.maxd)
                 break
-            # if self.depth %  == 0:
-            # print(self.counter,self.depth,time.time()-st)
-            # self.counter = 0
-        # print(ans)
-        # time.sleep(1)
+
 
         return ans[1] 
         
