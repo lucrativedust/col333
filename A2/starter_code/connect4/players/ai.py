@@ -83,7 +83,7 @@ class AIPlayer:
         # return v1**2-(1 - frc*(frc-1))*v2**2
         epsilon = 1e-8
         if( self.mode == "random"):
-            # return 10**((v1+epsilon)/(v2+epsilon))
+            # return 10**((v1+1)/(v2+1))
             return ((v1+epsilon)/(v2+epsilon))**3
         elif( self.mode == "intelligent"):
             return v1-(1 + 0.5*frc)*v2
@@ -200,9 +200,7 @@ class AIPlayer:
         valid_actions  = get_valid_actions(my_player_number, state)
         total_number_of_valid_actions = len(valid_actions)
         if( total_number_of_valid_actions == 0 ) or (self.depth == 0):
-            # print(state)
-            # return (get_pts(my_player_number, state[0]), None)
-            # print(valid_actions,self.depth)
+
             return (self.evaluation(state),None)
         best_value, best_action = None, None       
         for action in valid_actions:
@@ -224,7 +222,7 @@ class AIPlayer:
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
         """
         if( (self.intelligent_st + self.time ) - time.time() < 0.5 ):
-            print(self.counter)
+            # print(self.counter)
             raise Exception("Time out")
         my_player_number = 3-self.player_number
         valid_actions  = get_valid_actions(my_player_number, state)
@@ -310,7 +308,8 @@ class AIPlayer:
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
         """
         if( (self.intelligent_st + self.time ) - time.time() < 0.5 ):
-            print(self.counter)
+            # print(self.counter)
+        
             raise Exception("Time out")
         my_player_number = self.player_number
         valid_actions  = get_valid_actions(my_player_number, state)
@@ -434,12 +433,11 @@ class AIPlayer:
             try:
                 ans = self.expectimax_node(state)
             except:
-                print("Time about to end !!!")
+                # print("Time about to end !!!")
                 break
 
-        print(ans)
+        # print(ans)
         return ans[1]
-        # raise NotImplementedError('Whoops I don\'t know what to do')
     def get_intelligent_move(self, state: Tuple[np.array, Dict[int, Integer]]) -> Tuple[int, bool]:
         """
         Given the current state of the board, return the next move
@@ -459,9 +457,7 @@ class AIPlayer:
         frc = (self.get_number_of_filled_cells(state[0])/(state[0].shape[0]*state[0].shape[1]))
         self.win_pts = [i**(1+0.5*(1-frc)) for i in win_pts]
         ans = self.get_minimax_move(state)
-        # print(self.counter)
-        # self.counter = 0
-        # print(ans)
+
         return ans
-        # raise NotImplementedError('Whoops I don\'t know what to do')
+
 
