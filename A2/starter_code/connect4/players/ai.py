@@ -104,6 +104,14 @@ class AIPlayer:
         self.win_pts = win_pts
 
 
+    def move_cost(self, old_state, action):
+        colind = action[0]
+        m,n = old_state[0].shape
+        dismid = abs(n/2 - 1 - colind)
+        ans = 0
+        ans -= dismid
+        return ans
+
 
     def get_number_of_filled_cells( self, board : np.array ) -> int :
         """
@@ -168,6 +176,36 @@ class AIPlayer:
             sum_of_children += child_value
         
         return sum_of_children / total_number_of_valid_actions
+    def expectimax_node( self, state : Tuple[np.array, Dict[int, Integer]] ) : 
+        """
+            returns the Tuple [ max of all expectation node among all children, best_Action  ] 
+        """
+        if( (self.expectimax_st + self.time ) - time.time() < 0.3 ):
+            raise Exception("Time out")
+
+        my_player_number = self.player_number
+        valid_actions  = get_valid_actions(my_player_number, state)
+        total_number_of_valid_actions = len(valid_actions)
+        if( total_number_of_valid_actions == 0 ) or (self.depth == 0):
+            # print(state)
+            # return (get_pts(my_player_number, state[0]), None)
+            # print(valid_actions,self.depth)
+            return (self.evaluation(state),None)
+        best_value, best_action = None, None       
+        for action in valid_actions:
+            self.counter += 1
+            next_state = self.apply_action(action, state, my_player_number)
+            self.depth -= 1
+            child_value = self.expectation_node(next_state)
+            self.depth += 1
+            if( best_value is None ):
+                best_action = action
+                best_value = child_value
+            elif( child_value > best_value ):
+                best_value = child_value
+                best_action = action
+        return (best_value, best_action)
+    
     def evaluation_node( self, state : Tuple[np.array, Dict[int, Integer]],store , alpha , beta) : 
         """
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
@@ -254,35 +292,6 @@ class AIPlayer:
 
 
 
-    def expectimax_node( self, state : Tuple[np.array, Dict[int, Integer]] ) : 
-        """
-            returns the Tuple [ max of all expectation node among all children, best_Action  ] 
-        """
-        if( (self.expectimax_st + self.time ) - time.time() < 0.3 ):
-            raise Exception("Time out")
-
-        my_player_number = self.player_number
-        valid_actions  = get_valid_actions(my_player_number, state)
-        total_number_of_valid_actions = len(valid_actions)
-        if( total_number_of_valid_actions == 0 ) or (self.depth == 0):
-            # print(state)
-            # return (get_pts(my_player_number, state[0]), None)
-            # print(valid_actions,self.depth)
-            return (self.evaluation(state),None)
-        best_value, best_action = None, None       
-        for action in valid_actions:
-            self.counter += 1
-            next_state = self.apply_action(action, state, my_player_number)
-            self.depth -= 1
-            child_value = self.expectation_node(next_state)
-            self.depth += 1
-            if( best_value is None ):
-                best_action = action
-                best_value = child_value
-            elif( child_value > best_value ):
-                best_value = child_value
-                best_action = action
-        return (best_value, best_action)
     def minimax_node( self, state : Tuple[np.array, Dict[int, Integer]],store , alpha = None, beta = None) : 
         """
             returns the Tuple [ max of all expectation node among all children, best_Action  ] 
@@ -309,7 +318,7 @@ class AIPlayer:
             if cnd:
                 next_state = self.apply_action(action, state, my_player_number)
                 self.depth -= 1
-                child_value = self.evaluation_node(next_state, k[2], alpha, beta)
+                child_value = self.evaluation_node(next_state, k[2], alpha, beta)+self.move_cost(state,action)
                 self.depth += 1
                 storec.put((-child_value,k[1],k[2]))
                 if( best_value is None ):
@@ -340,7 +349,7 @@ class AIPlayer:
                 newpq = PriorityQueue()
                 next_state = self.apply_action(action, state, my_player_number)
                 self.depth -= 1
-                child_value = self.evaluation_node(next_state, newpq, alpha, beta)
+                child_value = self.evaluation_node(next_state, newpq, alpha, beta)+self.move_cost(state,action)
                 self.depth += 1
                 store.put((-child_value,action,newpq))
 
