@@ -6,7 +6,7 @@ import numpy as np
 from connect4.utils import Integer, get_pts, get_valid_actions
 from connect4.config import win_pts
 from queue import PriorityQueue
-from math import log1p
+
 import traceback
 
 class AIPlayer:
@@ -77,11 +77,16 @@ class AIPlayer:
     def evaluation(self,state):
         my_player_number = self.player_number
         frc = (self.get_number_of_filled_cells(state[0])/(state[0].shape[0]*state[0].shape[1]))
-        self.win_pts = [i**((2-frc)) for i in win_pts]
+        
         (v1,v2) = self.get_pts(my_player_number, state[0])
         # v2 = self.get_pts(3-my_player_number,state[0])
         # return v1**2-(1 - frc*(frc-1))*v2**2
-        return v1-(1 + 0.5*frc)*v2
+        epsilon = 1e-8
+        if( self.mode == "random"):
+            # return 10**((v1+epsilon)/(v2+epsilon))
+            return ((v1+epsilon)/(v2+epsilon))**3
+        elif( self.mode == "intelligent"):
+            return v1-(1 + 0.5*frc)*v2
         # return (v1+1)/(v2+1)
     
     def __init__(self, player_number: int, time: int):
@@ -422,10 +427,7 @@ class AIPlayer:
         # Do the rest of your implementation here
         self.depth = 1
         self.expectimax_st = time.time()        
-        # ans = self.expectimax_node(state)
-        # print(ans)
-        # print(self.counter,self.depth)
-        # while self.counter < 1000 and self.depth < 100:
+        self.mode  = "random"
         while self.depth < 100:
             self.depth += 1
             self.counter = 0
@@ -434,14 +436,7 @@ class AIPlayer:
             except:
                 print("Time about to end !!!")
                 break
-            # if x[1] is not None:
-            #     ans = x
-            # else:
-            #     break
-            # print(ans)
-            # print(self.counter,self.depth)
-        # self.counter = 0
-        # time.sleep(1)
+
         print(ans)
         return ans[1]
         # raise NotImplementedError('Whoops I don\'t know what to do')
@@ -460,6 +455,9 @@ class AIPlayer:
                         2. Dictionary of int to Integer. It will tell the remaining popout moves given a player
         :return: action (0 based index of the column and if it is a popout move)
         """
+        self.mode = "intelligent"
+        frc = (self.get_number_of_filled_cells(state[0])/(state[0].shape[0]*state[0].shape[1]))
+        self.win_pts = [i**(1+0.5*(1-frc)) for i in win_pts]
         ans = self.get_minimax_move(state)
         # print(self.counter)
         # self.counter = 0
